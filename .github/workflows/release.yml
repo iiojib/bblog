@@ -1,0 +1,43 @@
+name: release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Build platform binaries
+        run: make platform
+
+      - name: Package artifacts
+        run: |
+          mkdir -p release
+          tar -czf "release/bblog-darwin-amd64.tar.gz" -C "build/darwin_amd64" bblog
+          tar -czf "release/bblog-darwin-arm64.tar.gz" -C "build/darwin_arm64" bblog
+          tar -czf "release/bblog-linux-amd64.tar.gz" -C "build/linux_amd64" bblog
+          tar -czf "release/bblog-linux-arm64.tar.gz" -C "build/linux_arm64" bblog
+          cp install.sh "release/install.sh"
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${GITHUB_REF_NAME}" \
+            --title "${GITHUB_REF_NAME}" \
+            --generate-notes \
+            release/*.tar.gz release/install.sh

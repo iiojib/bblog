@@ -61,6 +61,22 @@ Many apps disable color output when they detect piped stdout. You can force colo
 FORCE_COLOR=1 myapp 2>&1 | tee >(bblog)
 ```
 
+---
+
+If you want the connection to survive manual restarts of your app, pipe the output to a log file:
+
+```bash
+myapp 2>&1 | tee /tmp/myapp.log
+```
+
+Then run `bblog` in another terminal session to stream that log file:
+
+```bash
+tail -f /tmp/myapp.log | bblog
+```
+
+---
+
 Add the following snippet to your HTML page to connect automatically to the log stream:
 
 ```html

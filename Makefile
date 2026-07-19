@@ -15,7 +15,7 @@ bookmarklet-js: $(BUILD_DIR)
 	esbuild --minify --bundle --outfile=$(BOOKMARKLET_JS) bookmarklet.ts
 
 client-js: $(BUILD_DIR)
-	esbuild --minify --bundle --outfile=$(CLIENT_JS) inject.ts
+	esbuild --minify --bundle --outfile=$(CLIENT_JS) global.ts
 
 bookmarklet: bookmarklet-js build_bookmarklet.sh
 	bash ./build_bookmarklet.sh $(BOOKMARKLET_JS) $(BOOKMARKLET_TXT)

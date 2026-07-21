@@ -29,7 +29,7 @@ go install .
 Start your app and pipe its output to `bblog`:
 
 ```bash
-myapp 2>&1 | tee >(bblog)
+myapp 2>&1 | tee -i >(bblog)
 ```
 
 Save the following bookmarklet as a browser bookmark URL:
@@ -58,7 +58,7 @@ Positional arguments:
 Many apps disable color output when they detect piped stdout. You can force color output by setting the `FORCE_COLOR` environment variable:
 
 ```bash
-FORCE_COLOR=1 myapp 2>&1 | tee >(bblog)
+FORCE_COLOR=1 myapp 2>&1 | tee -i >(bblog)
 ```
 
 ---
@@ -66,7 +66,7 @@ FORCE_COLOR=1 myapp 2>&1 | tee >(bblog)
 If you want the connection to survive manual restarts of your app, pipe the output to a log file:
 
 ```bash
-myapp 2>&1 | tee /tmp/myapp.log
+myapp 2>&1 | tee -i -a /tmp/myapp.log
 ```
 
 Then run `bblog` in another terminal session to stream that log file:
@@ -74,6 +74,8 @@ Then run `bblog` in another terminal session to stream that log file:
 ```bash
 tail -f /tmp/myapp.log | bblog
 ```
+
+With this approach you can also stream logs from multiple apps by piping their outputs to the same log file.
 
 ---
 

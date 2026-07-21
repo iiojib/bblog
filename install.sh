@@ -1,7 +1,7 @@
 #!/usr/bin/env sh
 set -eu
 
-VERSION="v0.1.0"
+VERSION="${1:-v0.2.0}"
 BINDIR="/usr/local/bin"
 
 case "$(uname -s)" in Linux) os=linux ;; Darwin) os=darwin ;; *) exit 1 ;; esac

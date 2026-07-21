@@ -13,7 +13,7 @@ Tiny stdin-to-browser log streaming tool.
 ### Using installer script
 
 ```bash
-curl -L https://github.com/iiojib/bblog/releases/latest/download/install.sh | sh
+curl -fsSL https://github.com/iiojib/bblog/releases/latest/download/install.sh | sh
 ```
 
 ### From source

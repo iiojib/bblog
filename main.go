@@ -95,67 +95,32 @@ func (h *hub) broadcast(payload string) {
 	}
 }
 
-func sanitizePrefix(prefix string, stripEscape bool) string {
-	p := strings.ReplaceAll(prefix, "\r", " ")
-	p = strings.ReplaceAll(p, "\n", " ")
-
+func translateLine(line string, stripEscape bool) string {
 	if stripEscape {
-		p = stripAnsi(p)
-	}
-
-	return p
-}
-
-func translateLine(raw, prefix string, noTimestamp bool, stripEscape bool) string {
-	line := raw
-
-	if prefix != "" {
-		line = fmt.Sprintf("[%s] %s", prefix, line)
-	}
-
-	if stripEscape {
-		line = stripAnsi(line)
-
-		if noTimestamp {
-			return line + "\n"
-		}
-
-		return fmt.Sprintf("[%s] %s\n", time.Now().Format("15:04:05"), line)
+		return stripAnsi(line) + "\n"
 	}
 
 	segments := textToStyledSegments(line)
 
-	if noTimestamp {
-		return segmentsToPayload(segments)
-	}
-
-	ts := time.Now().Format("15:04:05")
-	withTimestamp := []styledSegment{
-		{text: "[", style: ""},
-		{text: ts, style: "color:#00a7c7;font-weight:600"},
-		{text: "] ", style: ""},
-	}
-	withTimestamp = append(withTimestamp, segments...)
-
-	return segmentsToPayload(withTimestamp)
+	return segmentsToPayload(segments)
 }
 
 func main() {
 	var host string
 	var port int
-	var noTimestamp bool
 	var stripEscape bool
+	var version bool
 
 	flag.StringVar(&host, "H", "0.0.0.0", "HTTP listen host")
 	flag.IntVar(&port, "P", 8088, "HTTP listen port")
-	flag.BoolVar(&noTimestamp, "N", false, "Disable timestamp in emitted messages")
 	flag.BoolVar(&stripEscape, "S", false, "Strip ANSI escape codes")
+	flag.BoolVar(&version, "v", false, "Show version and exit")
 
 	flag.Parse()
 
-	prefix := ""
-	if flag.NArg() > 0 {
-		prefix = sanitizePrefix(flag.Arg(0), stripEscape)
+	if version {
+		fmt.Println("bblog version 0.2.0")
+		return
 	}
 
 	h := newHub()
@@ -215,7 +180,7 @@ func main() {
 
 		for scanner.Scan() {
 			raw := scanner.Text()
-			msg := translateLine(raw, prefix, noTimestamp, stripEscape)
+			msg := translateLine(raw, stripEscape)
 			h.broadcast(msg)
 		}
 

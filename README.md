@@ -40,18 +40,11 @@ javascript:(()%3D%3E%7Bfunction%20e(t)%7Blet%20o%3Dnew%20EventSource(t)%3Bo.onop
 
 Open your app in the browser, then click the bookmarklet to start streaming logs.
 
-## Options and Arguments
-
-CLI flags:
+## CLI flags:
 
 - `-H string` HTTP listen host (default: `0.0.0.0`)
 - `-P int` HTTP listen port (default: `8088`)
-- `-N` disable timestamp in emitted messages
 - `-S` strip ANSI escape codes (emit plain text)
-
-Positional arguments:
-
-- `prefix` optional. Appended as `[prefix] ` before each log line.
 
 ## Advanced Usage
 

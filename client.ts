@@ -1,15 +1,13 @@
-export default function client(hostPort: string): void {
-	const shutdownSentinel = "\n__BBLOG_SHUTDOWN__";
-	const url = `http://${hostPort}/`;
+export default function client(url: string): void {
 	const sse = new EventSource(url);
 
 	sse.onopen = () => console.log(`[bbLog] connected: ${url}`);
 	sse.onmessage = (event) => {
 		const data = String(event.data);
 
-		if (data === shutdownSentinel) {
+		if (data === "\n__BBLOG_SHUTDOWN__") {
 			console.log("[bbLog] server shutdown");
-            return sse.close();
+			return sse.close();
 		}
 
 		console.log(...data.split("\n"));

@@ -78,6 +78,16 @@ Or apply the prefix only to the broadcasted stream:
 myapp 2>&1 | tee -i >(sed -u 's/^/[myapp] /' | bblog)
 ```
 
+`tee -i` already ignores SIGINT. If you want to preserve shutdown logs from your app while using additional processing commands like `sed`, wrap those commands in `(trap '' INT; ...)`:
+
+```bash
+myapp 2>&1 | (trap '' INT; sed -u 's/^/[myapp] /') | tee -i >(bblog)
+
+# or
+
+myapp 2>&1 | tee -i >((trap '' INT; sed -u 's/^/[myapp] /') | bblog)
+```
+
 ---
 
 You can also add a timestamp to each line using `awk`:

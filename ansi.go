@@ -202,7 +202,7 @@ func textToStyledSegments(text string) []styledSegment {
 
 	for _, m := range matches {
 		if m[0] > last {
-			segments = appendSegment(segments, text[last:m[0]], cssFromSgrState(state))
+			segments = appendSegment(segments, stripAnsi(text[last:m[0]]), cssFromSgrState(state))
 		}
 
 		codesRaw := ""
@@ -231,7 +231,7 @@ func textToStyledSegments(text string) []styledSegment {
 	}
 
 	if last < len(text) {
-		segments = appendSegment(segments, text[last:], cssFromSgrState(state))
+		segments = appendSegment(segments, stripAnsi(text[last:]), cssFromSgrState(state))
 	}
 
 	return segments

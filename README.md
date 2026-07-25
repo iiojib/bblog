@@ -5,8 +5,8 @@ Tiny stdin-to-browser log streaming tool.
 ## Features
 
 - Works without code changes.
-- Activates through a bookmarklet.
-- Translates ANSI escape codes into browser console styles.
+- Activates via bookmarklet.
+- Translates ANSI SGR escape codes into browser console styles.
 
 ## Install
 
@@ -44,7 +44,7 @@ Open your app in the browser, then click the bookmarklet to start streaming logs
 
 - `-H string` HTTP listen host (default: `0.0.0.0`)
 - `-P int` HTTP listen port (default: `8088`)
-- `-S` strip ANSI escape codes (emit plain text)
+- `-S` strip all ANSI escape codes (emit plain text)
 
 ## Advanced Usage
 

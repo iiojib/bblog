@@ -21,6 +21,22 @@ func TestTextToStyledSegments_ParsesAnsiColor(t *testing.T) {
 	}
 }
 
+func TestTextToStyledSegments_StripsNonSgrAnsi(t *testing.T) {
+	segments := textToStyledSegments("\x1b[31mERR\x1b[0m\x1b[2Kdone")
+
+	if len(segments) != 2 {
+		t.Fatalf("expected 2 segments, got %d", len(segments))
+	}
+
+	if segments[0].text != "ERR" {
+		t.Fatalf("unexpected first segment text: %q", segments[0].text)
+	}
+
+	if segments[1].text != "done" {
+		t.Fatalf("unexpected second segment text: %q", segments[1].text)
+	}
+}
+
 func TestTextToStyledSegments_MergesAdjacentSameStyle(t *testing.T) {
 	segments := textToStyledSegments("abc")
 

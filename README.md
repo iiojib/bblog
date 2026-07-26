@@ -40,11 +40,13 @@ javascript:(()%3D%3E%7Bfunction%20e(t)%7Blet%20o%3Dnew%20EventSource(t)%3Bo.onop
 
 Open your app in the browser, then click the bookmarklet to start streaming logs.
 
-## CLI flags
+## Options
 
+- `[path]` read from named pipe (created if absent), or stdin if omitted
 - `-H string` HTTP listen host (default: `0.0.0.0`)
 - `-P int` HTTP listen port (default: `8088`)
 - `-S` strip all ANSI escape codes (emit plain text)
+- `-v` print version and exit
 
 ## Advanced Usage
 
@@ -61,7 +63,7 @@ FORCE_COLOR=1 myapp 2>&1 | tee -i >(bblog)
 - Python and `sed` support the `-u` flag to disable buffering (see the `sed` example below).
 - Other programs may support flags like `--line-buffered`, `--unbuffered`, etc.
 - For Python, you can also set `PYTHONUNBUFFERED=1`.
-- Apps that rely on C stdio may support the `stdbuf` command to disable buffering (see the `tail` example below).
+- Apps that rely on C stdio may support the `stdbuf` command to disable buffering.
 - Or you can use the `unbuffer` command from the `expect` package to run your application in a PTY.
 
 ---
@@ -98,19 +100,19 @@ myapp 2>&1 | awk '{ print strftime("[%H:%M:%S]"), $0; fflush(); }' | tee -i >(bb
 
 ---
 
-If you want the browser connection to survive manual app restarts, pipe output to a log file:
+If you want the browser connection to survive manual app restarts, start `bblog` with a named pipe:
 
 ```bash
-myapp 2>&1 | tee -i -a /tmp/myapp.log
+bblog /tmp/myapp.pipe
 ```
 
-Then run `bblog` in another terminal session to stream that log file:
+Then run your app and pipe its output to that named pipe:
 
 ```bash
-stdbuf -o0 tail -f /tmp/myapp.log | bblog
+myapp 2>&1 | tee -i /tmp/myapp.pipe
 ```
 
-With this approach you can also stream logs from multiple apps by piping their outputs to the same log file.
+With this approach you can also stream logs from multiple apps by piping their outputs to the same named pipe.
 
 ---
 

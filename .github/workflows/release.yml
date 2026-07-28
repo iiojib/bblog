@@ -37,7 +37,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "${GITHUB_REF_NAME}" \
+          gh release create "${GITHUB_REF_NAME}" -p \
             --title "${GITHUB_REF_NAME}" \
             --generate-notes \
             release/*.tar.gz release/install.sh

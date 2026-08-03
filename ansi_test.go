@@ -49,6 +49,34 @@ func TestTextToStyledSegments_MergesAdjacentSameStyle(t *testing.T) {
 	}
 }
 
+func TestTextToStyledSegments_ParsesEightBitAnsiColor(t *testing.T) {
+	segments := textToStyledSegments("\x1b[38;5;196mred\x1b[0m")
+
+	if len(segments) != 1 {
+		t.Fatalf("expected 1 segment, got %d", len(segments))
+	}
+
+	if segments[0].text != "red" {
+		t.Fatalf("unexpected segment text: %q", segments[0].text)
+	}
+
+	if !strings.Contains(segments[0].style, "color:#ff0000") {
+		t.Fatalf("expected 256-color style, got %q", segments[0].style)
+	}
+}
+
+func TestTextToStyledSegments_ParsesBrightEightBitAnsiColor(t *testing.T) {
+	segments := textToStyledSegments("\x1b[38;5;11myellow\x1b[0m")
+
+	if len(segments) != 1 {
+		t.Fatalf("expected 1 segment, got %d", len(segments))
+	}
+
+	if !strings.Contains(segments[0].style, "color:#ffcc33") {
+		t.Fatalf("expected bright yellow 256-color style, got %q", segments[0].style)
+	}
+}
+
 func TestSegmentsToPayload_ProducesFormatAndStyles(t *testing.T) {
 	payload := segmentsToPayload([]styledSegment{
 		{text: "A", style: "color:#ff0000"},

@@ -46,6 +46,7 @@ Open your app in the browser, then click the bookmarklet to start streaming logs
 - `-H string` HTTP listen host (default: `0.0.0.0`)
 - `-P int` HTTP listen port (default: `8088`)
 - `-S` strip all ANSI escape codes (emit plain text)
+- `-max-buffer-size int` Maximum buffer size in KB, minimum: 4KB (default: `64`)
 - `-v` print version and exit
 
 ## Advanced Usage

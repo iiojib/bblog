@@ -34,14 +34,16 @@ func translateLine(line string, stripEscape bool) string {
 
 func main() {
 	var host string
-	var port int
+	var port uint
 	var stripEscape bool
 	var version bool
+	var maxBufferSize uint
 
 	flag.StringVar(&host, "H", defaultHost, "HTTP listen host")
-	flag.IntVar(&port, "P", defaultPort, "HTTP listen port")
+	flag.UintVar(&port, "P", defaultPort, "HTTP listen port")
 	flag.BoolVar(&stripEscape, "S", false, "Strip ANSI escape codes")
 	flag.BoolVar(&version, "v", false, "Show version and exit")
+	flag.UintVar(&maxBufferSize, "max-buffer-size", 64, "Maximum buffer size in KB, minimum 4KB")
 
 	flag.Parse()
 
@@ -53,6 +55,10 @@ func main() {
 	var inputPath string
 	if flag.NArg() > 0 {
 		inputPath = flag.Arg(0)
+	}
+
+	if maxBufferSize < 4 {
+		log.Fatalf("max-buffer-size must be at least 4KB, got %dKB", maxBufferSize)
 	}
 
 	h := newHub()
@@ -79,6 +85,11 @@ func main() {
 
 	go func() {
 		scanner := bufio.NewScanner(src)
+
+		if maxBufferSize != 64 {
+			buffer := make([]byte, 0, min(4, int(maxBufferSize))*1024)
+			scanner.Buffer(buffer, int(maxBufferSize)*1024)
+		}
 
 		for scanner.Scan() {
 			raw := scanner.Text()

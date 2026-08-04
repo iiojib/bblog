@@ -148,12 +148,6 @@ func rgbToHex(r, g, b int) string {
 }
 
 func ansi256Color(code int) string {
-	if code < 0 {
-		return ""
-	}
-
-	code = code % 256
-
 	if code < 8 {
 		return ansiFgColor(30 + code)
 	}
@@ -235,15 +229,26 @@ func applySgrSequence(state *sgrState, codes []int) {
 	for i := 0; i < len(codes); i++ {
 		code := codes[i]
 
-		if (code == 38 || code == 48) && i+2 < len(codes) && codes[i+1] == 5 {
-			if code == 38 {
-				state.fg = ansi256Color(codes[i+2])
-			} else {
-				state.bg = ansi256Color(codes[i+2])
+		if code == 38 || code == 48 {
+			color := ""
+
+			if i+4 < len(codes) && codes[i+1] == 2 {
+				color = rgbToHex(codes[i+2]%256, codes[i+3]%256, codes[i+4]%256)
+				i += 4
+			} else if i+2 < len(codes) && codes[i+1] == 5 {
+				color = ansi256Color(codes[i+2] % 256)
+				i += 2
 			}
 
-			i += 2
-			continue
+			if color != "" {
+				if code == 38 {
+					state.fg = color
+				} else {
+					state.bg = color
+				}
+
+				continue
+			}
 		}
 
 		applySgrCode(state, code)
@@ -287,6 +292,7 @@ func textToStyledSegments(text string) []styledSegment {
 
 			for _, part := range parts {
 				if part == "" {
+					codes = append(codes, 0)
 					continue
 				}
 

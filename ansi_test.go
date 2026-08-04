@@ -77,6 +77,59 @@ func TestTextToStyledSegments_ParsesBrightEightBitAnsiColor(t *testing.T) {
 	}
 }
 
+func TestTextToStyledSegments_ParsesExtendedAnsiColors(t *testing.T) {
+	tests := []struct {
+		name      string
+		text      string
+		wantStyle string
+	}{
+		{
+			name:      "RGB foreground",
+			text:      "\x1b[38;2;255;128;0morange\x1b[0m",
+			wantStyle: "color:#ff8000",
+		},
+		{
+			name:      "RGB background",
+			text:      "\x1b[48;2;12;34;56mbackground\x1b[0m",
+			wantStyle: "background-color:#0c2238",
+		},
+		{
+			name:      "wrapped RGB values",
+			text:      "\x1b[38;2;1140;290;512mwrapped\x1b[0m",
+			wantStyle: "color:#742200",
+		},
+		{
+			name:      "wrapped palette index",
+			text:      "\x1b[38;5;452mwrapped\x1b[0m",
+			wantStyle: "color:#ff0000",
+		},
+		{
+			name:      "all empty RGB values",
+			text:      "\x1b[38;2;;;mblack\x1b[0m",
+			wantStyle: "color:#000000",
+		},
+		{
+			name:      "individual empty RGB values",
+			text:      "\x1b[38;2;;34;mgreen\x1b[0m",
+			wantStyle: "color:#002200",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			segments := textToStyledSegments(test.text)
+
+			if len(segments) != 1 {
+				t.Fatalf("expected 1 segment, got %d", len(segments))
+			}
+
+			if !strings.Contains(segments[0].style, test.wantStyle) {
+				t.Fatalf("expected style %q, got %q", test.wantStyle, segments[0].style)
+			}
+		})
+	}
+}
+
 func TestSegmentsToPayload_ProducesFormatAndStyles(t *testing.T) {
 	payload := segmentsToPayload([]styledSegment{
 		{text: "A", style: "color:#ff0000"},

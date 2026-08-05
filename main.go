@@ -9,91 +9,18 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"strings"
-	"sync"
 	"syscall"
 	"time"
 )
 
-const shutdownSentinel = "\n__BBLOG_SHUTDOWN__"
-
-type client struct {
-	ch     chan string
-	closed chan struct{}
-	once   sync.Once
-}
-
-func newClient(buffer int) *client {
-	return &client{
-		ch:     make(chan string, buffer),
-		closed: make(chan struct{}),
-	}
-}
-
-func (c *client) close() {
-	c.once.Do(func() {
-		close(c.closed)
-	})
-}
-
-type hub struct {
-	mu      sync.RWMutex
-	clients map[*client]struct{}
-}
-
-func newHub() *hub {
-	return &hub{
-		clients: make(map[*client]struct{}),
-	}
-}
-
-func (h *hub) add(c *client) {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-
-	h.clients[c] = struct{}{}
-}
-
-func (h *hub) remove(c *client) {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-
-	if _, ok := h.clients[c]; !ok {
-		return
-	}
-
-	delete(h.clients, c)
-	c.close()
-}
-
-func (h *hub) closeAll() {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-
-	for c := range h.clients {
-		c.close()
-		delete(h.clients, c)
-	}
-}
-
-func (h *hub) broadcast(payload string) {
-	h.mu.RLock()
-
-	clients := make([]*client, 0, len(h.clients))
-	for c := range h.clients {
-		clients = append(clients, c)
-	}
-
-	h.mu.RUnlock()
-
-	for _, c := range clients {
-		select {
-		case c.ch <- payload:
-		case <-c.closed:
-			continue
-		}
-	}
-}
+const (
+	shutdownSentinel = "\n__BBLOG_SHUTDOWN__"
+	defaultHost      = "0.0.0.0"
+	defaultPort      = 8088
+	appVersion       = "0.3.0"
+	shutdownTimeout  = 5 * time.Second
+	shutdownWaitTime = 100 * time.Millisecond
+)
 
 func translateLine(line string, stripEscape bool) string {
 	if stripEscape {
@@ -107,20 +34,31 @@ func translateLine(line string, stripEscape bool) string {
 
 func main() {
 	var host string
-	var port int
+	var port uint
 	var stripEscape bool
 	var version bool
+	var maxBufferSize uint
 
-	flag.StringVar(&host, "H", "0.0.0.0", "HTTP listen host")
-	flag.IntVar(&port, "P", 8088, "HTTP listen port")
+	flag.StringVar(&host, "H", defaultHost, "HTTP listen host")
+	flag.UintVar(&port, "P", defaultPort, "HTTP listen port")
 	flag.BoolVar(&stripEscape, "S", false, "Strip ANSI escape codes")
 	flag.BoolVar(&version, "v", false, "Show version and exit")
+	flag.UintVar(&maxBufferSize, "max-buffer-size", 64, "Maximum buffer size in KB, minimum 4KB")
 
 	flag.Parse()
 
 	if version {
-		fmt.Println("bblog version 0.2.0")
+		fmt.Println("bblog version " + appVersion)
 		return
+	}
+
+	var inputPath string
+	if flag.NArg() > 0 {
+		inputPath = flag.Arg(0)
+	}
+
+	if maxBufferSize < 4 {
+		log.Fatalf("max-buffer-size must be at least 4KB, got %dKB", maxBufferSize)
 	}
 
 	h := newHub()
@@ -129,54 +67,29 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
+	src, err := newSource(inputPath)
+	if err != nil {
+		log.Fatalf("%v", err)
+	}
+	defer src.Close()
+
+	stopClose := context.AfterFunc(ctx, func() {
+		src.Close()
+	})
+	defer stopClose()
+
 	server := &http.Server{Addr: addr}
 
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "*")
-		if r.Method == http.MethodOptions {
-			w.WriteHeader(http.StatusNoContent)
-			return
-		}
-
-		flusher, ok := w.(http.Flusher)
-		if !ok {
-			http.Error(w, "streaming unsupported", http.StatusInternalServerError)
-			return
-		}
-
-		w.Header().Set("Content-Type", "text/event-stream")
-		w.Header().Set("Cache-Control", "no-cache")
-		w.Header().Set("Connection", "keep-alive")
-		w.Header().Set("X-Accel-Buffering", "no")
-
-		client := newClient(128)
-		h.add(client)
-		defer h.remove(client)
-
-		log.Printf("client connected: %s", r.RemoteAddr)
-		defer log.Printf("client disconnected: %s", r.RemoteAddr)
-
-		fmt.Fprint(w, ": connected\n\n")
-		flusher.Flush()
-
-		for {
-			select {
-			case <-r.Context().Done():
-				return
-			case <-client.closed:
-				return
-			case msg := <-client.ch:
-				msg = strings.ReplaceAll(msg, "\n", "\ndata: ")
-				fmt.Fprintf(w, "data: %s\n\n", msg)
-				flusher.Flush()
-			}
-		}
-	})
+	http.HandleFunc("OPTIONS /", handleOptions)
+	http.HandleFunc("GET /", handleSSE(h))
 
 	go func() {
-		scanner := bufio.NewScanner(os.Stdin)
+		scanner := bufio.NewScanner(src)
+
+		if maxBufferSize != 64 {
+			buffer := make([]byte, 0, min(4, int(maxBufferSize))*1024)
+			scanner.Buffer(buffer, int(maxBufferSize)*1024)
+		}
 
 		for scanner.Scan() {
 			raw := scanner.Text()
@@ -184,11 +97,11 @@ func main() {
 			h.broadcast(msg)
 		}
 
-		if err := scanner.Err(); err != nil {
-			log.Printf("stdin read error: %v", err)
+		if err := scanner.Err(); err != nil && ctx.Err() == nil {
+			log.Printf("%s read error: %v", src, err)
 		}
 
-		log.Printf("stdin closed, shutting down")
+		log.Printf("%s closed, shutting down", src)
 		stop()
 	}()
 
@@ -196,16 +109,15 @@ func main() {
 		<-ctx.Done()
 
 		h.broadcast(shutdownSentinel)
-		time.Sleep(100 * time.Millisecond)
+		time.Sleep(shutdownWaitTime)
+		h.closeAll()
 
-		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
 		defer cancel()
 
 		if err := server.Shutdown(shutdownCtx); err != nil {
 			log.Printf("server shutdown error: %v", err)
 		}
-
-		h.closeAll()
 	}()
 
 	log.Printf("bblog listening on %s", addr)

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"regexp"
 	"strconv"
 	"strings"
@@ -142,6 +143,44 @@ func ansiBgColor(code int) string {
 	return ""
 }
 
+func rgbToHex(r, g, b int) string {
+	return fmt.Sprintf("#%02x%02x%02x", r, g, b)
+}
+
+func ansi256Color(code int) string {
+	if code < 8 {
+		return ansiFgColor(30 + code)
+	}
+
+	if code < 16 {
+		return ansiFgColor(90 + code - 8)
+	}
+
+	if code < 232 {
+		v := code - 16
+		r := 0
+		g := 0
+		b := 0
+
+		if v/36 > 0 {
+			r = ((v / 36) % 6) * 51
+		}
+
+		if (v/6)%6 > 0 {
+			g = ((v / 6) % 6) * 51
+		}
+
+		if v%6 > 0 {
+			b = (v % 6) * 51
+		}
+
+		return rgbToHex(r, g, b)
+	}
+
+	gray := (code-232)*10 + 8
+	return rgbToHex(gray, gray, gray)
+}
+
 func applySgrCode(state *sgrState, code int) {
 	switch code {
 	case 0:
@@ -181,6 +220,41 @@ func applySgrCode(state *sgrState, code int) {
 	}
 }
 
+func applySgrSequence(state *sgrState, codes []int) {
+	if len(codes) == 0 {
+		applySgrCode(state, 0)
+		return
+	}
+
+	for i := 0; i < len(codes); i++ {
+		code := codes[i]
+
+		if code == 38 || code == 48 {
+			color := ""
+
+			if i+4 < len(codes) && codes[i+1] == 2 {
+				color = rgbToHex(codes[i+2]%256, codes[i+3]%256, codes[i+4]%256)
+				i += 4
+			} else if i+2 < len(codes) && codes[i+1] == 5 {
+				color = ansi256Color(codes[i+2] % 256)
+				i += 2
+			}
+
+			if color != "" {
+				if code == 38 {
+					state.fg = color
+				} else {
+					state.bg = color
+				}
+
+				continue
+			}
+		}
+
+		applySgrCode(state, code)
+	}
+}
+
 func appendSegment(segments []styledSegment, text, style string) []styledSegment {
 	if text == "" {
 		return segments
@@ -202,7 +276,7 @@ func textToStyledSegments(text string) []styledSegment {
 
 	for _, m := range matches {
 		if m[0] > last {
-			segments = appendSegment(segments, text[last:m[0]], cssFromSgrState(state))
+			segments = appendSegment(segments, stripAnsi(text[last:m[0]]), cssFromSgrState(state))
 		}
 
 		codesRaw := ""
@@ -211,27 +285,30 @@ func textToStyledSegments(text string) []styledSegment {
 		}
 
 		if codesRaw == "" {
-			applySgrCode(&state, 0)
+			applySgrSequence(&state, []int{0})
 		} else {
-			for _, part := range strings.Split(codesRaw, ";") {
-				code := 0
+			parts := strings.Split(codesRaw, ";")
+			codes := make([]int, 0, len(parts))
 
-				if part != "" {
-					parsed, err := strconv.Atoi(part)
-					if err == nil {
-						code = parsed
-					}
+			for _, part := range parts {
+				if part == "" {
+					codes = append(codes, 0)
+					continue
 				}
 
-				applySgrCode(&state, code)
+				if parsed, err := strconv.Atoi(part); err == nil {
+					codes = append(codes, parsed)
+				}
 			}
+
+			applySgrSequence(&state, codes)
 		}
 
 		last = m[1]
 	}
 
 	if last < len(text) {
-		segments = appendSegment(segments, text[last:], cssFromSgrState(state))
+		segments = appendSegment(segments, stripAnsi(text[last:]), cssFromSgrState(state))
 	}
 
 	return segments

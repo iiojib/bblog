@@ -1,12 +1,12 @@
-.PHONY: all bookmarklet-js client-js bookmarklet platform clean build-darwin-amd64 build-darwin-arm64 build-linux-amd64 build-linux-arm64
+.PHONY: all bookmarklet-js global-js bookmarklet platform clean build-darwin-amd64 build-darwin-arm64 build-linux-amd64 build-linux-arm64
 
 BUILD_DIR := build
 BOOKMARKLET_JS := $(BUILD_DIR)/bookmarklet.js
-CLIENT_JS := $(BUILD_DIR)/client.js
+GLOBAL_JS := $(BUILD_DIR)/global.js
 BOOKMARKLET_TXT := $(BUILD_DIR)/bookmarklet
 GO_BIN := bblog
 
-all: platform bookmarklet client-js
+all: platform bookmarklet global-js
 
 $(BUILD_DIR):
 	mkdir -p $(BUILD_DIR)
@@ -14,8 +14,8 @@ $(BUILD_DIR):
 bookmarklet-js: $(BUILD_DIR)
 	esbuild --minify --bundle --log-level=error --outfile=$(BOOKMARKLET_JS) bookmarklet.ts
 
-client-js: $(BUILD_DIR)
-	esbuild --minify --bundle --log-level=error --outfile=$(CLIENT_JS) global.ts
+global-js: $(BUILD_DIR)
+	esbuild --minify --bundle --log-level=error --outfile=$(GLOBAL_JS) global.ts
 
 bookmarklet: bookmarklet-js build_bookmarklet.sh
 	bash ./build_bookmarklet.sh $(BOOKMARKLET_JS) $(BOOKMARKLET_TXT)

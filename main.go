@@ -17,7 +17,7 @@ const (
 	shutdownSentinel = "\n__BBLOG_SHUTDOWN__"
 	defaultHost      = "0.0.0.0"
 	defaultPort      = 8088
-	appVersion       = "0.3.0"
+	appVersion       = "0.3.1"
 	shutdownTimeout  = 5 * time.Second
 	shutdownWaitTime = 100 * time.Millisecond
 )

@@ -6,7 +6,7 @@ Tiny stdin-to-browser log streaming tool.
 
 - Works without code changes.
 - Activates via bookmarklet.
-- Translates ANSI SGR escape codes into browser console styles.
+- Translates ANSI SGR escape codes into browser console styles on a per-line basis. For multiline styles, try [resgr](https://github.com/iiojib/resgr).
 
 ## Install
 
